@@ -57,26 +57,37 @@ FROM
 WHERE
 	len(MarketingComments) >= 10
 
---? Q6. List of stock items that are not sold to the state of Alabama and Georgia in 2014.
-
-SELECT
-	DISTINCT s.StockItemID
-FROM
-	Warehouse.StockItemTransactions s
-JOIN Sales.Customers sc ON s.CustomerID = sc.CustomerID
-JOIN Application.Cities ac ON ac.CityID = sc.PostalCityID
-WHERE
-	CAST(s.TransactionOccurredWhen AS DATE) BETWEEN '2014-01-01' AND '2014-12-31'
-	AND
-	ac.StateProvinceID NOT IN	(SELECT
+-- Q6. List of stock items that are not sold to the state of Alabama and Georgia in 2014.
+-- Only ID 223 do not sell to both states
+WITH items_with_AL_GA AS(
+	SELECT
+		DISTINCT s.StockItemID
+	FROM
+		Warehouse.StockItemTransactions s
+	JOIN Sales.Customers sc ON s.CustomerID = sc.CustomerID
+	JOIN Application.Cities ac ON ac.CityID = sc.PostalCityID
+	WHERE
+		ac.StateProvinceID IN	(SELECT
 									StateProvinceID
 								FROM
 									Application.StateProvinces s
 								WHERE
 									s.StateProvinceName = 'Alabama' or s.StateProvinceName = 'Georgia'
 								)
-ORDER BY
-	s.StockItemID
+)
+SELECT
+	DISTINCT ws.StockItemID
+FROM
+	Warehouse.StockItemTransactions ws
+WHERE
+	CAST(ws.TransactionOccurredWhen AS DATE) BETWEEN '2014-01-01' AND '2014-12-31'
+	AND
+	ws.StockItemID NOT IN (
+						SELECT
+							StockItemID
+						FROM
+							items_with_AL_GA
+						)
 
 --Q7. List of States and Avg dates for processing (confirmed delivery date – order date).
 
@@ -107,4 +118,69 @@ GROUP BY
 	ac.StateProvinceID
 ORDER BY
 	ac.StateProvinceID
+
+--Q9. List of StockItems that the company purchased more than sold in the year of 2015.
+WITH sold AS(
+	SELECT
+		ws.StockItemID,
+		COUNT(ws.InvoiceID) AS count_sold
+	FROM
+		Warehouse.StockItemTransactions ws
+	JOIN Sales.Invoices i ON ws.InvoiceID = i.InvoiceID
+	GROUP BY
+		ws.StockItemID
+), purchase AS(
+	SELECT
+		ws.StockItemID,
+		COUNT(ws.PurchaseOrderID) AS count_purchase
+	FROM
+		Warehouse.StockItemTransactions ws
+	JOIN Purchasing.PurchaseOrders p ON ws.PurchaseOrderID = p.PurchaseOrderID
+	GROUP BY
+		ws.StockItemID
+)
+SELECT
+	DISTINCT ws.StockItemID
+FROM
+	Warehouse.StockItemTransactions ws
+JOIN sold s ON ws.StockItemID = s.StockItemID
+JOIN purchase p ON ws.StockItemID = p.StockItemID
+WHERE
+	CAST(ws.TransactionOccurredWhen AS DATE) BETWEEN '2015-01-01' AND '2015-12-31'
+	AND
+	p.count_purchase > s.count_sold
+
+--Q10. List of Customers and their phone number, together with the primary contact person’s name, to whom we did not sell more than 10 mugs (search by name) in the year 2016.
+WITH cte_ID AS(
+	SELECT
+		c.CustomerID
+	FROM
+		Warehouse.StockItems si 
+	JOIN Warehouse.StockItemTransactions st ON si.StockItemID = st.StockItemID
+	JOIN Sales.Customers c ON c.CustomerID = st.CustomerID
+	WHERE
+		si.StockItemName LIKE '%mug%'
+		AND
+		YEAR(st.TransactionOccurredWhen) = '2016'
+	GROUP BY
+		c.CustomerID
+	HAVING COUNT(si.StockItemID) <= 10
+)
+SELECT
+	c.CustomerName,
+	c.PhoneNumber,
+	p.FullName
+FROM
+	Sales.Customers c
+JOIN cte_ID i ON c.CustomerID = i.CustomerID
+JOIN Application.People p ON p.PersonID = c.PrimaryContactPersonID
+
+--Q11. List all the cities that were updated after 2015-01-01.
+
+SELECT
+	CityName
+FROM
+	Application.Cities
+WHERE
+	YEAR(ValidFrom) >= 2015
 
