@@ -120,7 +120,7 @@ ORDER BY
 	ac.StateProvinceID
 
 --Q9. List of StockItems that the company purchased more than sold in the year of 2015.
-WITH sold AS(
+WITH cte_sold AS(
 	SELECT
 		ws.StockItemID,
 		COUNT(ws.InvoiceID) AS count_sold
@@ -129,7 +129,7 @@ WITH sold AS(
 	JOIN Sales.Invoices i ON ws.InvoiceID = i.InvoiceID
 	GROUP BY
 		ws.StockItemID
-), purchase AS(
+), cte_purchase AS(
 	SELECT
 		ws.StockItemID,
 		COUNT(ws.PurchaseOrderID) AS count_purchase
@@ -143,8 +143,8 @@ SELECT
 	DISTINCT ws.StockItemID
 FROM
 	Warehouse.StockItemTransactions ws
-JOIN sold s ON ws.StockItemID = s.StockItemID
-JOIN purchase p ON ws.StockItemID = p.StockItemID
+JOIN cte_sold s ON ws.StockItemID = s.StockItemID
+JOIN cte_purchase p ON ws.StockItemID = p.StockItemID
 WHERE
 	CAST(ws.TransactionOccurredWhen AS DATE) BETWEEN '2015-01-01' AND '2015-12-31'
 	AND
@@ -184,3 +184,91 @@ FROM
 WHERE
 	YEAR(ValidFrom) >= 2015
 
+--Q12. List all the Order Detail (Stock Item name, delivery address, delivery state, city, country, customer name, 
+-- customer contact person name, customer phone, quantity) for the date of 2014-07-01. Info should be relevant to that date.
+
+WITH cte_filter_time AS(
+	SELECT
+		st.StockItemID,
+		st.CustomerID,
+		st.Quantity
+	FROM
+		Warehouse.StockItemTransactions st
+	WHERE
+		CAST(TransactionOccurredWhen AS DATE) = '2014-07-01'
+)
+SELECT
+	si.StockItemName AS Stock_Item_name,
+	sc.DeliveryAddressLine2 AS Delivery_add,
+	asp.StateProvinceName AS Delivery_state, 
+	ac.CityName AS Delivery_city,
+	acty.CountryName AS Delivery_country,
+	sc.CustomerName AS Customer_name,
+	ap.FullName AS Contact_person_name,
+	sc.PhoneNumber AS Customer_phone,
+	st.Quantity
+FROM
+	cte_filter_time st
+JOIN Warehouse.StockItems si ON st.StockItemID = si.StockItemID
+JOIN Sales.Customers sc ON st.CustomerID = sc.CustomerID
+JOIN Application.Cities ac ON ac.CityID = sc.DeliveryCityID
+JOIN Application.StateProvinces asp ON asp.StateProvinceID = ac.StateProvinceID
+JOIN Application.Countries acty ON acty.CountryID = asp.CountryID
+JOIN Application.People ap ON sc.PrimaryContactPersonID = ap.PersonID
+
+--Q13. List of stock item groups and total quantity purchased, total quantity sold, and the remaining stock quantity (quantity purchased – quantity sold)
+
+WITH cte_sold AS(
+	SELECT
+		ws.StockItemID,
+		SUM(i.Quantity) AS sum_sold
+	FROM
+		Warehouse.StockItemTransactions ws
+	JOIN Sales.InvoiceLines i ON ws.StockItemID = i.StockItemID
+	GROUP BY
+		ws.StockItemID
+), cte_purchase AS(
+	SELECT
+		ws.StockItemID,
+		SUM(CAST(p.OrderedOuters AS BIGINT)) AS sum_purchased
+	FROM
+		Warehouse.StockItemTransactions ws
+	JOIN Purchasing.PurchaseOrderLines p ON ws.StockItemID = p.StockItemID
+	GROUP BY
+		ws.StockItemID
+)
+SELECT
+	wsg.StockGroupName,
+	SUM(CAST(p.sum_purchased AS BIGINT)) AS total_purchased,
+	SUM(CAST(s.sum_sold AS BIGINT)) AS total_sold,
+	SUM(CAST(p.sum_purchased-s.sum_sold AS BIGINT)) AS remaining_stock
+FROM
+	Warehouse.StockGroups wsg
+JOIN Warehouse.StockItemStockGroups wsistg ON wsg.StockGroupID = wsistg.StockGroupID
+JOIN cte_sold s ON s.StockItemID = wsistg.StockItemID
+JOIN cte_purchase p ON p.StockItemID = wsistg.StockItemID
+GROUP BY
+	wsg.StockGroupName
+
+--Q14. List of Cities in the US and the stock item that the city got the most deliveries in 2016. If the city did not purchase any stock items in 2016, print “No Sales”.
+
+WITH cte_count_stock AS(
+	SELECT
+		ps.DeliveryCityID,
+		COUNT(ws.StockItemID) as count_stock
+	FROM
+		Purchasing.Suppliers ps
+	JOIN Warehouse.StockItemTransactions ws ON ps.SupplierID = ws.SupplierID
+	WHERE
+		YEAR(TransactionOccurredWhen) = 2016
+	GROUP BY
+		ps.DeliveryCityID
+)
+SELECT
+	ac.CityName,
+	COALESCE(CAST(MAX(count_stock) AS CHAR), 'No sales') AS most_stock
+FROM
+	Application.Cities ac 
+LEFT JOIN cte_count_stock cs ON ac.CityID = cs.DeliveryCityID
+GROUP BY
+	ac.CityName
