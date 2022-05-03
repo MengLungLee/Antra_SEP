@@ -272,3 +272,36 @@ FROM
 LEFT JOIN cte_count_stock cs ON ac.CityID = cs.DeliveryCityID
 GROUP BY
 	ac.CityName
+
+--Q15. List any orders that had more than one delivery attempt (located in invoice table).
+
+SELECT
+	i.OrderID
+FROM
+	Sales.Invoices i
+GROUP BY
+	i.OrderID
+HAVING COUNT(JSON_VALUE(ReturnedDeliveryData, '$.Events[1].Comment')) >= 1
+
+--Q16. List all stock items that are manufactured in China. (Country of Manufacture)
+
+SELECT
+	si.StockItemName
+FROM
+	Warehouse.StockItems si
+WHERE
+	JSON_Value(si.CustomFields, '$.CountryOfManufacture' ) = 'China'
+
+--Q17. Total quantity of stock items sold in 2015, group by country of manufacturing.
+
+SELECT
+	JSON_VALUE(si.CustomFields, '$.CountryOfManufacture') AS Country_M,
+	SUM(i.Quantity) AS sum_sold
+FROM
+	Warehouse.StockItems si
+JOIN Warehouse.StockItemTransactions st ON si.StockItemID = st.StockItemID
+JOIN Sales.InvoiceLines i ON st.InvoiceID = i.InvoiceID
+WHERE
+	YEAR(st.TransactionOccurredWhen) = '2015'
+GROUP BY
+	JSON_VALUE(si.CustomFields, '$.CountryOfManufacture')
