@@ -336,3 +336,254 @@ CREATE VIEW Sales.v_StockItem
 		SUM(total_sold)
 		FOR T_Year IN ([2013], [2014], [2015], [2016], [2017])
 	)P_table;
+
+--Q19. Create a view that shows the total quantity of stock items of each stock group sold (in orders) by year 2013-2017. [Year, Stock Group Name1, Stock Group Name2, Stock Group Name3, …, Stock Group Name10]
+IF OBJECT_ID('Sales.v_StockItem2', 'view') IS NOT NULL
+	DROP VIEW Sales.v_StockItem2
+GO
+CREATE VIEW Sales.v_StockItem2 
+	WITH SCHEMABINDING
+	AS
+	SELECT
+		T_Year,
+		[Novelty Items], [Clothing], [Mugs], 
+		[T-Shirts], [Airline Novelties], [Computing Novelties],
+		[USB Novelties], [Furry Footwear], [Toys]
+		,[Packaging Materials]
+	FROM
+	(
+		SELECT
+			wsg.StockGroupName,
+			YEAR(st.TransactionOccurredWhen) AS T_Year,
+			SUM(i.Quantity) AS total_sold
+		FROM
+			Warehouse.StockItemTransactions st
+		JOIN Sales.InvoiceLines i ON st.InvoiceID = i.InvoiceID
+		JOIN Warehouse.StockItemStockGroups wsistg ON st.StockItemID = wsistg.StockItemID
+		JOIN Warehouse.StockGroups wsg ON wsg.StockGroupID = wsistg.StockGroupID
+		WHERE
+			YEAR(st.TransactionOccurredWhen) BETWEEN '2013' AND '2017'
+		GROUP BY
+			wsg.StockGroupName, YEAR(st.TransactionOccurredWhen)
+	) sub
+	PIVOT(
+		SUM(total_sold)
+		FOR StockGroupName IN(	[Novelty Items], [Clothing], [Mugs], 
+								[T-Shirts], [Airline Novelties], [Computing Novelties],
+								[USB Novelties], [Furry Footwear], [Toys]
+								,[Packaging Materials])
+	)P_table;
+
+--Q20. Create a function, input: order id; return: total of that order. 
+-- List invoices and use that function to attach the order total to the other fields of invoices. 
+USE [WideWorldImporters]
+GO
+IF OBJECT_ID('udfGetTotalOrder', 'function') IS NOT NULL
+	DROP FUNCTION udfGetTotalOrder
+GO
+CREATE FUNCTION udfGetTotalOrder(@OrderId int)
+RETURNS INT
+AS
+BEGIN
+	DECLARE @total_order INT
+	SELECT
+		@total_order = COALESCE(SUM(il.Quantity), 0)
+	FROM
+		Sales.Invoices i
+	JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
+	WHERE
+		@OrderId = i.OrderID
+	RETURN @total_order
+END
+
+GO
+SELECT
+	o.OrderID,
+	dbo.udfGetTotalOrder(o.OrderID) AS total_quantity
+FROM
+	Sales.Orders o
+
+--Q20. Create a function, input: order id; return: total of that order. 
+-- List invoices and use that function to attach the order total to the other fields of invoices. 
+USE [WideWorldImporters]
+GO
+IF OBJECT_ID('udfGetTotalOrder', 'function') IS NOT NULL
+	DROP FUNCTION udfGetTotalOrder
+GO
+CREATE FUNCTION udfGetTotalOrder(@OrderId int)
+RETURNS INT
+AS
+BEGIN
+	DECLARE @total_order INT
+	SELECT
+		@total_order = COALESCE(SUM(il.Quantity), 0)
+	FROM
+		Sales.Invoices i
+	JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
+	WHERE
+		@OrderId = i.OrderID
+	RETURN @total_order
+END
+
+GO
+SELECT
+	o.OrderID,
+	dbo.udfGetTotalOrder(o.OrderID) AS total_quantity
+FROM
+	Sales.Orders o
+
+--Q21. Create a new table called ods.Orders. Create a stored procedure, with proper error handling and transactions, that input is a date; when executed, it would find orders of that day, calculate order total, and save the information (order id, order date, order total, customer id) into the new table. If a given date is already existing in the new table, throw an error and roll back. Execute the stored procedure 5 times using different dates. 
+USE [WideWorldImporters]
+GO
+CREATE SCHEMA [ods];
+GO
+DROP TABLE IF EXISTS ods.Orders
+CREATE TABLE ods.Orders (
+	OrderId INT NOT NULL PRIMARY KEY, 
+	OrderDate DATE NOT NULL, 
+	OrderTotal BIGINT, 
+	CustomerId INT,
+	CONSTRAINT FK_OrdersCustomers FOREIGN KEY (CustomerID)
+		REFERENCES Sales.Customers(CustomerID)
+)
+GO
+IF OBJECT_ID('Sales.uspGetOrderInfo', 'procedure') IS NOT NULL
+	DROP PROCEDURE Sales.uspGetOrderInfo
+GO
+CREATE PROCEDURE Sales.uspGetOrderInfo
+@OrderDate DATE
+AS
+BEGIN TRY
+	IF TRIGGER_NESTLEVEL() > 1
+		RETURN
+	BEGIN TRANSACTION
+		IF EXISTS (SELECT 1 FROM ods.Orders WHERE @OrderDate = OrderDate)
+			BEGIN;
+				THROW 50000, 'The record does exists', 1
+				ROLLBACK TRANSACTION
+			END
+		ELSE
+			BEGIN
+			INSERT INTO ods.Orders
+				SELECT
+					o.OrderID,
+					o.OrderDate,
+					SUM(il.Quantity) AS Order_Total,
+					o.CustomerID
+				FROM
+					Sales.Orders o
+				JOIN Sales.Invoices i ON o.OrderID = i.OrderID
+				JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
+				WHERE
+					@OrderDate = o.OrderDate
+				GROUP BY
+					o.OrderID,o.OrderDate,o.CustomerID
+			END
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage, XACT_STATE() AS X_STATE 
+	IF (XACT_STATE()) = -1
+		ROLLBACK TRANSACTION
+
+	IF (XACT_STATE()) = 1
+		COMMIT TRANSACTION
+END CATCH
+
+GO
+EXECUTE Sales.uspGetOrderInfo '2013-01-01';
+EXECUTE Sales.uspGetOrderInfo '2013-01-05';
+EXECUTE Sales.uspGetOrderInfo '2013-01-10';
+EXECUTE Sales.uspGetOrderInfo '2013-01-15';
+EXECUTE Sales.uspGetOrderInfo '2013-01-01';
+
+--Q22. Create a new table called ods.StockItem. It has following columns: [StockItemID], [StockItemName] ,[SupplierID] ,[ColorID] ,[UnitPackageID] ,[OuterPackageID] ,[Brand] ,[Size] ,[LeadTimeDays] ,[QuantityPerOuter] ,[IsChillerStock] ,[Barcode] ,[TaxRate]  ,[UnitPrice],[RecommendedRetailPrice] ,[TypicalWeightPerUnit] ,[MarketingComments]  ,[InternalComments], [CountryOfManufacture], [Range], [Shelflife]. Migrate all the data in the original stock item table.
+
+USE [WideWorldImporters]
+GO
+DROP TABLE IF EXISTS ods.StockItem
+CREATE TABLE ods.StockItem (
+	StockItemID INT NOT NULL PRIMARY KEY, 
+	StockItemName NVARCHAR(100) NOT NULL, 
+	SupplierID INT NOT NULL, 
+	ColorID INT,
+	UnitPackageID INT NOT NULL,
+	OuterPackageID INT NOT NULL,
+	Brand NVARCHAR(50),
+	Size NVARCHAR(20),
+	LeadTimeDays INT NOT NULL,
+	QuantityPerOuter INT NOT NULL,
+	IsChillerStock INT NOT NULL,
+	Barcode NVARCHAR(50),
+	TaxRate decimal(18,3) NOT NULL,
+	UnitPrice decimal(18,2) NOT NULL,
+	RecommendedRetailPrice decimal(18,2),
+	TypicalWeightPerUnit decimal(18,3) NOT NULL,
+	MarketingComments NVARCHAR(MAX),
+	InternalComments NVARCHAR(MAX), 
+	CountryOfManufacture NVARCHAR(MAX), 
+	Range NVARCHAR(20) , 
+	Shelflife NVARCHAR(20),
+	CONSTRAINT FK_Warehouse_StockItems_ColorID FOREIGN KEY (ColorID)
+		REFERENCES Warehouse.Colors (ColorID),
+	CONSTRAINT FK_Warehouse_StockItems_OuterPackageID FOREIGN KEY (OuterPackageID)
+		REFERENCES Warehouse.PackageTypes (PackageTypeID),
+	CONSTRAINT FK_Warehouse_StockItems_SupplierID FOREIGN KEY (SupplierID)
+		REFERENCES Purchasing.Suppliers (SupplierID),
+	CONSTRAINT FK_Warehouse_StockItems_UnitPackageID FOREIGN KEY (UnitPackageID)
+		REFERENCES Warehouse.PackageTypes (PackageTypeID)
+)
+INSERT INTO ods.StockItem
+SELECT
+	StockItemID, StockItemName, SupplierID, ColorID, UnitPackageID, OuterPackageID, Brand, Size, LeadTimeDays, QuantityPerOuter, 
+	IsChillerStock, Barcode, TaxRate, UnitPrice, RecommendedRetailPrice, TypicalWeightPerUnit, MarketingComments, InternalComments, 
+	JSON_VALUE(CustomFields, '$."CountryOfManufacture"'), JSON_VALUE(CustomFields, '$."Range"'), JSON_VALUE(CustomFields, '$."ShelfLife"')
+FROM
+	Warehouse.StockItems
+
+--Q23. Rewrite your stored procedure in (21). Now with a given date, it should wipe out all the order data prior to the input date and load the order data that was placed in the next 7 days following the input date.
+
+USE [WideWorldImporters]
+GO
+IF OBJECT_ID('Sales.uspGetOrderInfo', 'procedure') IS NOT NULL
+	DROP PROCEDURE Sales.uspGetOrderInfo
+GO
+CREATE PROCEDURE Sales.uspGetOrderInfo
+@OrderDate DATE
+AS
+BEGIN TRY
+	IF TRIGGER_NESTLEVEL() > 1
+		RETURN
+	BEGIN TRANSACTION
+		DELETE FROM ods.Orders
+		WHERE @OrderDate >= OrderDate
+
+		INSERT INTO ods.Orders
+		SELECT
+			o.OrderID,
+			o.OrderDate,
+			SUM(il.Quantity) AS Order_Total,
+			o.CustomerID
+		FROM
+			Sales.Orders o
+		JOIN Sales.Invoices i ON o.OrderID = i.OrderID
+		JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
+		WHERE
+			o.OrderDate BETWEEN @OrderDate AND DATEADD(DAY, 7, @OrderDate)
+		GROUP BY
+			o.OrderID,o.OrderDate,o.CustomerID
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage, XACT_STATE() AS X_STATE 
+	IF (XACT_STATE()) = -1
+		ROLLBACK TRANSACTION
+
+	IF (XACT_STATE()) = 1
+		COMMIT TRANSACTION
+END CATCH
+
+GO
+EXECUTE Sales.uspGetOrderInfo '2013-01-15';
+
+--Q24. 
