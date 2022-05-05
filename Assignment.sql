@@ -37,10 +37,11 @@ HAVING MAX(ct.TransactionDate) <= '2015-12-31'
 
 SELECT
 	s.StockItemID,
-	COUNT(p.PurchaseOrderID) AS total_quantity
+	SUM(pol.OrderedOuters) AS total_quantity
 FROM
 	Purchasing.PurchaseOrders p
 JOIN Warehouse.StockItemTransactions s ON p.PurchaseOrderID = s.PurchaseOrderID
+JOIN Purchasing.PurchaseOrderLines pol ON pol.PurchaseOrderID = p.PurchaseOrderID
 WHERE
 	p.OrderDate BETWEEN '2013-01-01' AND '2013-12-31'
 GROUP BY
@@ -305,3 +306,33 @@ WHERE
 	YEAR(st.TransactionOccurredWhen) = '2015'
 GROUP BY
 	JSON_VALUE(si.CustomFields, '$.CountryOfManufacture')
+
+--Q18. Create a view that shows the total quantity of stock items of each stock group sold (in orders) by year 2013-2017. [Stock Group Name, 2013, 2014, 2015, 2016, 2017]
+IF OBJECT_ID('Sales.v_StockItem', 'view') IS NOT NULL
+	DROP VIEW Sales.v_StockItem
+GO
+CREATE VIEW Sales.v_StockItem 
+	WITH SCHEMABINDING 
+	AS
+	SELECT
+		StockGroupName,
+		[2013], [2014], [2015], [2016], [2017]
+	FROM(
+		SELECT
+			wsg.StockGroupName,
+			YEAR(st.TransactionOccurredWhen) AS T_Year,
+			SUM(i.Quantity) AS total_sold
+		FROM
+			Warehouse.StockItemTransactions st
+		JOIN Sales.InvoiceLines i ON st.InvoiceID = i.InvoiceID
+		JOIN Warehouse.StockItemStockGroups wsistg ON st.StockItemID = wsistg.StockItemID
+		JOIN Warehouse.StockGroups wsg ON wsg.StockGroupID = wsistg.StockGroupID
+		WHERE
+			YEAR(st.TransactionOccurredWhen) BETWEEN '2013' AND '2017'
+		GROUP BY
+			wsg.StockGroupName, YEAR(st.TransactionOccurredWhen)
+		) sub
+	PIVOT(
+		SUM(total_sold)
+		FOR T_Year IN ([2013], [2014], [2015], [2016], [2017])
+	)P_table;
