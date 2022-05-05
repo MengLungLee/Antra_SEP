@@ -403,35 +403,6 @@ SELECT
 FROM
 	Sales.Orders o
 
---Q20. Create a function, input: order id; return: total of that order. 
--- List invoices and use that function to attach the order total to the other fields of invoices. 
-USE [WideWorldImporters]
-GO
-IF OBJECT_ID('udfGetTotalOrder', 'function') IS NOT NULL
-	DROP FUNCTION udfGetTotalOrder
-GO
-CREATE FUNCTION udfGetTotalOrder(@OrderId int)
-RETURNS INT
-AS
-BEGIN
-	DECLARE @total_order INT
-	SELECT
-		@total_order = COALESCE(SUM(il.Quantity), 0)
-	FROM
-		Sales.Invoices i
-	JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
-	WHERE
-		@OrderId = i.OrderID
-	RETURN @total_order
-END
-
-GO
-SELECT
-	o.OrderID,
-	dbo.udfGetTotalOrder(o.OrderID) AS total_quantity
-FROM
-	Sales.Orders o
-
 --Q21. Create a new table called ods.Orders. Create a stored procedure, with proper error handling and transactions, that input is a date; when executed, it would find orders of that day, calculate order total, and save the information (order id, order date, order total, customer id) into the new table. If a given date is already existing in the new table, throw an error and roll back. Execute the stored procedure 5 times using different dates. 
 USE [WideWorldImporters]
 GO
@@ -586,4 +557,130 @@ END CATCH
 GO
 EXECUTE Sales.uspGetOrderInfo '2013-01-15';
 
---Q24. 
+--Q24. Consider the JSON file ... 
+-- Looks like that it is our missed purchase orders. Migrate these data into Stock Item, Purchase Order and Purchase Order Lines tables. Of course, save the script.
+
+DECLARE @json NVARCHAR(MAX) 
+SET @json = '{
+   "PurchaseOrders":[
+      {
+         "StockItemName":"Panzer Video Game",
+         "Supplier":"7",
+         "UnitPackageId":"1",
+         "OuterPackageId":"7",
+         "Brand":"EA Sports",
+         "LeadTimeDays":"5",
+         "QuantityPerOuter":"1",
+         "TaxRate":"6",
+         "UnitPrice":"59.99",
+         "RecommendedRetailPrice":"69.99",
+         "TypicalWeightPerUnit":"0.5",
+         "CountryOfManufacture":"Canada",
+         "Range":"Adult",
+         "OrderDate":"2018-01-01",
+         "DeliveryMethod":"Post",
+         "ExpectedDeliveryDate":"2018-02-02",
+         "SupplierReference":"WWI2308"
+      },
+      {
+         "StockItemName":"Panzer Video Game",
+         "Supplier":"5",
+         "UnitPackageId":"1",
+         "OuterPackageId":"7",
+         "Brand":"EA Sports",
+         "LeadTimeDays":"5",
+         "QuantityPerOuter":"1",
+         "TaxRate":"6",
+         "UnitPrice":"59.99",
+         "RecommendedRetailPrice":"69.99",
+         "TypicalWeightPerUnit":"0.5",
+         "CountryOfManufacture":"Canada",
+         "Range":"Adult",
+         "OrderDate":"2018-01-025",
+         "DeliveryMethod":"Post",
+         "ExpectedDeliveryDate":"2018-02-02",
+         "SupplierReference":"269622390"
+      }
+   ]
+}'
+
+DROP TABLE IF EXISTS #temp_table
+SELECT *
+INTO #temp_table
+FROM 
+OPENJSON(@json) WITH(
+			StockItemName NVARCHAR(100) '$.PurchaseOrders[0].StockItemName',
+			SupplierID INT '$.PurchaseOrders[0].Supplier', 
+			UnitPackageID INT '$.PurchaseOrders[0].UnitPackageId',
+			OuterPackageID INT '$.PurchaseOrders[0].OuterPackageId',
+			Brand NVARCHAR(50) '$.PurchaseOrders[0].Brand',
+			LeadTimeDays INT '$.PurchaseOrders[0].LeadTimeDays',
+			QuantityPerOuter INT '$.PurchaseOrders[0].QuantityPerOuter',
+			TaxRate decimal(18,3) '$.PurchaseOrders[0].TaxRate',
+			UnitPrice decimal(18,2) '$.PurchaseOrders[0].UnitPrice',
+			RecommendedRetailPrice decimal(18,2) '$.PurchaseOrders[0].RecommendedRetailPrice',
+			TypicalWeightPerUnit decimal(18,3) '$.PurchaseOrders[0].TypicalWeightPerUnit',
+			CountryOfManufacture NVARCHAR(MAX) '$.PurchaseOrders[0].CountryOfManufacture',
+			Range NVARCHAR(20) '$.PurchaseOrders[0].Range',
+			OrderDate DATE '$.PurchaseOrders[0].OrderDate',
+			DeliveryMethod NVARCHAR(10) '$.PurchaseOrders[0].DeliveryMethod',
+			ExpectedDeliveryDate DATE '$.PurchaseOrders[0].ExpectedDeliveryDate',
+			SupplierReference NVARCHAR(20) '$.PurchaseOrders[0].SupplierReference'
+)
+ALTER TABLE Warehouse.StockItems
+NOCHECK CONSTRAINT FK_Warehouse_StockItems_Application_People
+
+INSERT INTO Warehouse.StockItems(StockItemID, StockItemName, SupplierID, UnitPackageID, OuterPackageID, Brand, 
+								LeadTimeDays, IsChillerStock, QuantityPerOuter, TaxRate, UnitPrice, 
+								RecommendedRetailPrice, TypicalWeightPerUnit, CustomFields, LastEditedBy)
+SELECT
+	(SELECT MAX(StockItemID) FROM Warehouse.StockItems) + 1,
+	StockItemName, SupplierID, UnitPackageID, OuterPackageID, Brand, 
+	LeadTimeDays, 0, QuantityPerOuter, TaxRate, UnitPrice, 
+	RecommendedRetailPrice, TypicalWeightPerUnit, '{"CountryOfManufacture":"' + CountryOfManufacture + '"}', 0
+FROM
+	#temp_table
+
+ALTER TABLE Purchasing.PurchaseOrders
+NOCHECK CONSTRAINT FK_Purchasing_PurchaseOrders_DeliveryMethodID_Application_DeliveryMethods, FK_Purchasing_PurchaseOrders_ContactPersonID_Application_People
+INSERT INTO Purchasing.PurchaseOrders(SupplierID, OrderDate, DeliveryMethodID, ContactPersonID, 
+									ExpectedDeliveryDate, SupplierReference, IsOrderFinalized, LastEditedBy)
+SELECT
+	SupplierID,
+	OrderDate,
+	0,
+	0,
+	ExpectedDeliveryDate,
+	SupplierReference,
+	1,
+	1
+FROM
+	#temp_table
+
+--Q25. Revisit your answer in (19). Convert the result in JSON string and save it to the server using TSQL FOR JSON PATH.
+
+SELECT
+	*
+FROM
+	Sales.v_StockItem2
+FOR JSON PATH
+
+--Q26. Revisit your answer in (19). Convert the result into an XML string and save it to the server using TSQL FOR XML PATH.
+
+SELECT
+	T_Year,
+	[Novelty Items] AS Novelty_Items,
+	[Clothing],
+	[Mugs],
+	[T-Shirts],
+	[Airline Novelties] AS Airline_Novelties,
+	[Computing Novelties] AS Computing_Novelties,
+	[USB Novelties] AS USB_Novelties,
+	[Furry Footwear] AS Furry_Footwear,
+	[Toys],
+	[Packaging Materials] AS Packaging_Materials
+FROM
+	Sales.v_StockItem2
+FOR XML PATH ('')
+
+--Q
