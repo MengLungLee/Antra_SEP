@@ -683,4 +683,60 @@ FROM
 	Sales.v_StockItem2
 FOR XML PATH ('')
 
---Q
+USE [WideWorldImporters]
+GO
+DROP TABLE IF EXISTS ods.ConfirmedDeliveryJson 
+CREATE TABLE ods.ConfirmedDeliveryJson  (
+	ID INT NOT NULL IDENTITY(1,1) PRIMARY KEY, 
+	InvoiceDate DATE NOT NULL, 
+	InvoiceValue NVARCHAR(MAX) NOT NULL,
+)
+GO
+IF OBJECT_ID('Sales.uspGetInvoiceJson', 'procedure') IS NOT NULL
+	DROP PROCEDURE Sales.uspGetInvoiceJson
+GO
+CREATE PROCEDURE Sales.uspGetInvoiceJson
+@InvoiceDate DATE
+AS
+BEGIN TRY
+	IF TRIGGER_NESTLEVEL() > 1
+		RETURN
+	BEGIN TRANSACTION
+		INSERT INTO ods.ConfirmedDeliveryJson
+		SELECT
+			DISTINCT InvoiceDate,
+			(SELECT * FROM Sales.Invoices i
+			JOIN Sales.InvoiceLines il ON i.InvoiceID = il.InvoiceID
+			WHERE outeri.InvoiceDate = i.InvoiceDate
+			FOR JSON AUTO) AS InvoiceValue
+		FROM
+			Sales.Invoices outeri
+		WHERE @InvoiceDate = InvoiceDate
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage, XACT_STATE() AS X_STATE 
+	IF (XACT_STATE()) = -1
+		ROLLBACK TRANSACTION
+
+	IF (XACT_STATE()) = 1
+		COMMIT TRANSACTION
+END CATCH
+
+Go
+DECLARE cur CURSOR FOR
+	SELECT InvoiceDate FROM Sales.Invoices WHERE CustomerID = 1
+DECLARE @I_Date DATE
+
+OPEN cur
+FETCH NEXT FROM cur INTO @I_Date
+
+WHILE @@FETCH_STATUS = 0
+	BEGIN
+		EXECUTE Sales.uspGetInvoiceJson @I_Date
+		FETCH NEXT FROM cur INTO @I_Date
+	END
+CLOSE cur
+DEALLOCATE cur
+
+--Q28. 
