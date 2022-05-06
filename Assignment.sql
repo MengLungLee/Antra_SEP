@@ -739,4 +739,20 @@ WHILE @@FETCH_STATUS = 0
 CLOSE cur
 DEALLOCATE cur
 
---Q28. 
+--Q28. Write a short essay talking about your understanding of transactions, locks and isolation levels.
+'''
+A transaction contains one or several SQL statements and the effect of the transaction could be committed and rollback. Each transaction should follow the ACID rules,
+the aspect of Atomicity, each transaction is viewed as a single unit and it can not be separated, which means a transaction either be fully completed or fails. 
+For Consistency, any data written to the database have to be valid following their defined, such as trigger, and constraint. Consistency ensures the database avoids illegal transactions. 
+The aspect of Isolation, it guarantees the concurrent execution of transactions would not affect each other. there are four levels of isolation for pessimistic concurrency control from lower to higher, 
+Read Uncommitted, Read Committed, Repeatable Read, and Serializable. Each level might occur different race conditions, such as Dirty Read, Non-Repeatable Read, lost update, Phantom Read, and Write Skew. 
+Needless to say, the lower level has the most powerful performance but lost data accuracy and vice versa. Each level has a trade-off for performance and data accuracy and depends on what isolation level is applied to the database. 
+For Durability, it guarantees that once a transaction has been committed, it will remain committed even in the case of a system failure or even a power failure.
+
+When it comes to isolation, it also relates to locks. The lock mechanism is the technique of preventing inconsistent results from simultaneous access to data in the database. 
+The lock is able to be divided into two dimensions, range, and types. The range lock can be from a row to a database. In addition, 
+the lock types are mainly six different types, Shared Locks, Update Locks, Exclusive Locks, Intent Locks, Schema Locks, and Bulk Update Locks. 
+Each lock has different functionality and constraint. Depending on the requirements, the designers can address diverse combinations of lock types and range locks  to handle different situations. 
+For example, it is required to have high-level isolation while designing for purpose of money or transaction, which contains a bunch of writing operations. 
+By contrast, a Data warehouse demands numerous reading operations, it is able to apply no locks for the database.
+''' 
