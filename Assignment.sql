@@ -756,3 +756,14 @@ Each lock has different functionality and constraint. Depending on the requireme
 For example, it is required to have high-level isolation while designing for purpose of money or transaction, which contains a bunch of writing operations. 
 By contrast, a Data warehouse demands numerous reading operations, it is able to apply no locks for the database.
 ''' 
+
+--Q29. Write a short essay, plus screenshots talking about performance tuning in SQL Server. Must include Tuning Advisor, Extended Events, DMV, Logs and Execution Plan.
+
+'''
+There are two main factors for performance of query, query optimizer, cost-based optimization. However, the query optimizer can not be directly accessed by users since the query optimizer was set up once the database was built.
+Therefore, the cost-based optimization would be focused on the main factor to influence the performance. There are several factors to impact the query performance. 
+Although one query plan might arise from different methods, the performance of execution time has a huge variance. Amid minimizing input and output, limiting large sort, and efficient joins, efficient joins can affect performance heavily in huge database searching.
+SQL Server provided a few approaches and tools to monitor and tune the query performance. It is convenient to detect what reason causes bad efficiency and how to address the situations. 
+I try some approaches, including Tuning Advisor, Extended Event, DMV, Logs, and Execution Plans, although some can not be accessed by free users or have errors. 
+I believe I can learn these tools more familiar while I keep on using SSMS in the future.
+'''
