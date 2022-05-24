@@ -66,7 +66,7 @@ display(raw_moive_data_df)
     )
     .write
     .format("delta")
-    .mode("append")
+    .mode("overwrite")
     .partitionBy("p_ingestdate")
     .save(bronzePath)
 )

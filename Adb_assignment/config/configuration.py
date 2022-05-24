@@ -6,9 +6,9 @@
 # COMMAND ----------
 
 # Set up the path
-pipelinePath = f"/dbpipeline/data"
+pipelinePath = f"/dbpipeline/data/"
 
-rawPath = f"/mnt/movie/files_from_Mao"
+rawPath = f"/mnt/movie/files_from_Mao/"
 bronzePath = pipelinePath + "bronze/"
 silverPath = pipelinePath + "silver/"
 silverQuarantinePath = pipelinePath + "silverQuarantine/"
@@ -22,6 +22,10 @@ silverQuarantinePath = pipelinePath + "silverQuarantine/"
 
 spark.sql(f"CREATE DATABASE IF NOT EXISTS Movie")
 spark.sql(f"USE Movie")
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
