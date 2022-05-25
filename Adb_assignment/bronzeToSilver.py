@@ -3,10 +3,6 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./operations/operations
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC Bronze to Silver Step
 
@@ -38,10 +34,10 @@ bronzeDF.printSchema()
 
 # COMMAND ----------
 
-from pyspark.sql.functions import explode, flatten
+from pyspark.sql.functions import explode, flatten, lit, when
 
 bronzeAgumentedDF = bronzeDF.select("value", "value.*")
-
+# Fix all the minimum budget of 1 million
 silver_movie = bronzeAgumentedDF.select(
     col("value"),
     col("Id").cast("INTEGER"),
@@ -60,8 +56,11 @@ silver_movie = bronzeAgumentedDF.select(
     col("CreatedDate").cast("DATE").alias("p_CreatedDate"),
     col("UpdatedDate"),
     col("UpdatedBy"),
-    col("CreatedBy")
-)
+    col("CreatedBy"),
+    col("Genres.id").alias("Genres_Id"),
+    lit(1).alias("Language_Id")
+).withColumn("Budget", when((bronzeAgumentedDF.Budget < 100000), 100000).otherwise(bronzeAgumentedDF.Budget))
+
 silver_genres = bronzeAgumentedDF.select(
     explode(col("genres"))
 )
@@ -82,9 +81,8 @@ display(silver_movie)
 
 # COMMAND ----------
 
-from pyspark.sql.functions import when
-# Distinct rows and filter runtime > 0 and replace the minimum budget of 1 million
-silver_movie_clean = silver_movie.distinct().filter(col("RunTime") >= 0).withColumn("Budget", when((silver_movie.Budget < 100000), 100000).otherwise(silver_movie.Budget))
+# Distinct rows and filter runtime > 0
+silver_movie_clean = silver_movie.distinct().filter(col("RunTime") >= 0)
 silver_movie_quarantined = silver_movie.distinct().filter(col("RunTime") < 0)
 
 
@@ -132,7 +130,9 @@ display(silver_language_clean)
         col("p_CreatedDate"),
         col("UpdatedDate"),
         col("UpdatedBy"),
-        col("CreatedBy")
+        col("CreatedBy"),
+        col("Genres_Id"),
+        col("Language_Id")
     )
     .write.format("delta")
     .mode("overwrite")

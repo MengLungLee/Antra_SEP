@@ -10,7 +10,7 @@
 
 # COMMAND ----------
 
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, lit
 bronzeQuarantinedDF = spark.read.table("movie_bronze").filter(col("status") == "quarantined")
 
 # COMMAND ----------
@@ -40,9 +40,9 @@ display(bronzeQuarTransDF)
 
 # COMMAND ----------
 
-from pyspark.sql.functions import abs, when
+from pyspark.sql.functions import abs
 
-repairDF = bronzeQuarTransDF.distinct().withColumn("RunTime", abs(col("RunTime"))).withColumn("Budget", when((bronzeQuarTransDF.Budget < 100000), 100000).otherwise(bronzeQuarTransDF.Budget))
+repairDF = bronzeQuarTransDF.distinct().withColumn("RunTime", abs(col("RunTime")))
 
 # COMMAND ----------
 
@@ -74,7 +74,9 @@ silverCleanedDF = repairDF.select(
     col("CreatedDate").cast("DATE").alias("p_CreatedDate"),
     col("UpdatedDate"),
     col("UpdatedBy"),
-    col("CreatedBy")
+    col("CreatedBy"),
+    col("Genres.id").alias("Genres_Id"),
+    lit(1).alias("Language_Id")
 )
 (
     silverCleanedDF.select(
@@ -94,7 +96,9 @@ silverCleanedDF = repairDF.select(
         col("p_CreatedDate"),
         col("UpdatedDate"),
         col("UpdatedBy"),
-        col("CreatedBy")
+        col("CreatedBy"),
+        col("Genres_Id"),
+        col("Language_Id")
     )
     .write.format("delta")
     .mode("append")
