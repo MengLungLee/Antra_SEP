@@ -7,7 +7,7 @@
 
 # COMMAND ----------
 
-def raw_to_bronze() -> bool:
+def raw_to_bronze(rawPath: str) -> bool:
     rawDF = read_batch_raw(rawPath)
     transformRawDF = transform_raw(rawDF)
     rawToBronzeWriter = batch_writer(
@@ -18,7 +18,7 @@ def raw_to_bronze() -> bool:
 
 # COMMAND ----------
 
-def bronze_to_silver() -> bool:
+def bronze_to_silver(spark:SparkSession, bronzePath:str, silverPath:str) -> bool:
     bronzeDF = read_batch_bronze(spark)
     transformedBronzeDF_movie = transform_bronze(bronzeDF, "movie")
     (silverCleanDF_movie, silverQuarantineDF_movie) = generate_clean_and_quarantine_dataframes(transformedBronzeDF_movie)
@@ -47,7 +47,7 @@ def bronze_to_silver() -> bool:
 
 # COMMAND ----------
 
-def silver_update() -> bool:
+def silver_update(spark:SparkSession, bronzePath:str, silverPath:str) -> bool:
     silverCleanDF_movie = repair_quarantined_records(
         spark, bronzeTable="movie_bronze"
     )
@@ -60,9 +60,9 @@ def silver_update() -> bool:
 
 # COMMAND ----------
 
-raw_to_bronze()
-bronze_to_silver()
-silver_update()
+raw_to_bronze(rawPath)
+bronze_to_silver(spark, bronzePath, silverPath)
+silver_update(spark, bronzePath, silverPath)
 
 # COMMAND ----------
 
