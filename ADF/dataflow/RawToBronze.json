@@ -1,5 +1,5 @@
 {
-	"name": "dataflow1",
+	"name": "RawToBronze",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
