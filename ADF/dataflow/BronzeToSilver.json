@@ -1,0 +1,78 @@
+{
+	"name": "BronzeToSilver",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "movie_bronze",
+						"type": "DatasetReference"
+					},
+					"name": "IngestBronze"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "bronzeDF",
+					"description": "SelectValueColumn"
+				},
+				{
+					"name": "silverMovie"
+				},
+				{
+					"name": "deriveGenres"
+				},
+				{
+					"name": "silverGenres"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          value as (BackdropUrl as string, Budget as double, CreatedBy as string, CreatedDate as string, Id as short, ImdbUrl as string, OriginalLanguage as string, Overview as string, PosterUrl as string, Price as double, ReleaseDate as string, Revenue as double, RunTime as short, Tagline as string, Title as string, TmdbUrl as string, UpdatedBy as string, UpdatedDate as string, genres as (id as short, name as string)[]),",
+				"          datasource as string,",
+				"          ingesttime as timestamp,",
+				"          status as string,",
+				"          ingestdate as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     purgeFiles: true,",
+				"     format: 'parquet') ~> IngestBronze",
+				"IngestBronze select(mapColumn(",
+				"          value",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> bronzeDF",
+				"bronzeDF derive(value = value,",
+				"          Id = value.Id,",
+				"          Budget = case(value.Budget < 100000, 100000, toInteger(value.Budget)),",
+				"          Revenue = value.Revenue,",
+				"          RunTime = toInteger(value.RunTime),",
+				"          Price = value.Price,",
+				"          Title = value.Title,",
+				"          Overview = value.Overview,",
+				"          Tagline = value.Tagline,",
+				"          Imdburl = value.ImdbUrl,",
+				"          TmdbUrl = value.TmdbUrl,",
+				"          PosterUrl = value.PosterUrl,",
+				"          BackdropUrl = value.BackdropUrl,",
+				"          ReleaseDate = toDate(value.ReleaseDate),",
+				"          p_CreatedDate = toDate(value.CreatedDate),",
+				"          UpdatedDate = value.UpdatedDate,",
+				"          UpdatedBy = value.UpdatedBy,",
+				"          CreatedBy = value.CreatedBy,",
+				"          Genres = value.genres.id,",
+				"          Language_Id = 1) ~> silverMovie",
+				"bronzeDF derive(Genres = filter(distinct(value.genres), toString(value.genres.name) != \"\")) ~> deriveGenres",
+				"deriveGenres select(mapColumn(",
+				"          Genres",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> silverGenres"
+			]
+		}
+	}
+}

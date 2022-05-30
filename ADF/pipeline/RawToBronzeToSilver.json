@@ -1,5 +1,5 @@
 {
-	"name": "RawToBronze",
+	"name": "RawToBronzeToSilver",
 	"properties": {
 		"activities": [
 			{
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataflow": {
-						"referenceName": "dataflow1",
+						"referenceName": "RawToBronze",
 						"type": "DataFlowReference"
 					},
 					"compute": {
