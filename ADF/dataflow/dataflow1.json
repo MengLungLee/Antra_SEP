@@ -1,0 +1,64 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "Movie_json",
+						"type": "DatasetReference"
+					},
+					"name": "IngestMovie"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "movie_bronze",
+						"type": "DatasetReference"
+					},
+					"name": "saveToParquet",
+					"description": "Export data to Parquet1 from raw to bronze"
+				}
+			],
+			"transformations": [
+				{
+					"name": "flattenRows"
+				},
+				{
+					"name": "AddMetadata"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          movie as (BackdropUrl as string, Budget as double, CreatedBy as string, CreatedDate as string, Id as short, ImdbUrl as string, OriginalLanguage as string, Overview as string, PosterUrl as string, Price as double, ReleaseDate as string, Revenue as double, RunTime as short, Tagline as string, Title as string, TmdbUrl as string, UpdatedBy as string, UpdatedDate as string, genres as (id as short, name as string)[])[]",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     inferDriftedColumnTypes: true,",
+				"     ignoreNoFilesFound: false,",
+				"     documentForm: 'arrayOfDocuments') ~> IngestMovie",
+				"IngestMovie foldDown(unroll(movie, movie),",
+				"     mapColumn(",
+				"          value = movie",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flattenRows",
+				"flattenRows derive(value = value,",
+				"          datasource = \"movie.json\",",
+				"          ingesttime = currentTimestamp(),",
+				"          status = \"new\",",
+				"          ingestdate = currentDate()) ~> AddMetadata",
+				"AddMetadata sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveToParquet"
+			]
+		}
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"name": "DemoDFAsia",
+	"location": "eastasia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "b266ead3-3ad5-4455-b0e4-567f39cc4203",
+		"tenantId": "c3027947-868f-42af-bb72-da2e1840de3a"
+	}
+}
