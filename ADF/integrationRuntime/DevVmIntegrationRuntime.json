@@ -1,0 +1,6 @@
+{
+	"name": "DevVmIntegrationRuntime",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
