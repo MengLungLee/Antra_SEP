@@ -22,10 +22,16 @@
 					"name": "silverMovie"
 				},
 				{
-					"name": "deriveGenres"
+					"name": "derivedGenres"
 				},
 				{
-					"name": "silverGenres"
+					"name": "flatten"
+				},
+				{
+					"name": "DistinctRows"
+				},
+				{
+					"name": "filterNew"
 				}
 			],
 			"scriptLines": [
@@ -38,10 +44,11 @@
 				"     ),",
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     inferDriftedColumnTypes: true,",
 				"     ignoreNoFilesFound: false,",
 				"     purgeFiles: true,",
 				"     format: 'parquet') ~> IngestBronze",
-				"IngestBronze select(mapColumn(",
+				"filterNew select(mapColumn(",
 				"          value",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
@@ -66,12 +73,16 @@
 				"          CreatedBy = value.CreatedBy,",
 				"          Genres = value.genres.id,",
 				"          Language_Id = 1) ~> silverMovie",
-				"bronzeDF derive(Genres = filter(distinct(value.genres), toString(value.genres.name) != \"\")) ~> deriveGenres",
-				"deriveGenres select(mapColumn(",
-				"          Genres",
+				"bronzeDF derive(genres = value.genres) ~> derivedGenres",
+				"derivedGenres select(mapColumn(",
+				"          id = genres[1].id,",
+				"          name = genres[1].name",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> silverGenres"
+				"     skipDuplicateMapOutputs: true) ~> flatten",
+				"flatten aggregate(groupBy(id),",
+				"     each(match(name != \"id\"), $$ = first($$))) ~> DistinctRows",
+				"IngestBronze filter(status == \"new\") ~> filterNew"
 			]
 		}
 	}

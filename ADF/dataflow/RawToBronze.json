@@ -51,7 +51,7 @@
 				"          status = \"new\",",
 				"          ingestdate = currentDate()) ~> AddMetadata",
 				"AddMetadata sink(allowSchemaDrift: true,",
-				"     validateSchema: false,",
+				"     validateSchema: true,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
 				"     preCommands: [],",
