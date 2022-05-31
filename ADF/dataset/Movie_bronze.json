@@ -1,5 +1,5 @@
 {
-	"name": "movie_bronze",
+	"name": "Movie_bronze",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureDataLakeStorage1",

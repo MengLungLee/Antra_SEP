@@ -6,7 +6,7 @@
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "movie_bronze",
+						"referenceName": "Movie_bronze",
 						"type": "DatasetReference"
 					},
 					"name": "IngestBronze"
@@ -14,11 +14,15 @@
 			],
 			"sinks": [
 				{
+					"dataset": {
+						"referenceName": "Genres_silver",
+						"type": "DatasetReference"
+					},
 					"name": "saveSilverGenres"
 				},
 				{
 					"dataset": {
-						"referenceName": "Mov",
+						"referenceName": "Movie_silver",
 						"type": "DatasetReference"
 					},
 					"name": "saveSilverMovie"
@@ -43,7 +47,7 @@
 					"name": "flatten"
 				},
 				{
-					"name": "DistinctRows"
+					"name": "DistinctRowGenres"
 				},
 				{
 					"name": "filterNew"
@@ -64,7 +68,13 @@
 					"name": "createKey"
 				},
 				{
-					"name": "DistinctRow"
+					"name": "DistinctRowLanguage"
+				},
+				{
+					"name": "litStatusLoaded"
+				},
+				{
+					"name": "DistinctRowMovie"
 				}
 			],
 			"scriptLines": [
@@ -113,11 +123,11 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> flatten",
 				"flatten aggregate(groupBy(id),",
-				"     each(match(name!=\"id\"), $$ = first($$))) ~> DistinctRows",
+				"     each(match(name!=\"id\"), $$ = first($$))) ~> DistinctRowGenres",
 				"IngestBronze filter(status == \"new\") ~> filterNew",
 				"bronzeAgumentedDFMovie split(RunTime >= 0,",
 				"     disjoint: false) ~> split@(silverMovieClean, silverMovieQuarantined)",
-				"split@silverMovieClean select(mapColumn(",
+				"DistinctRowMovie select(mapColumn(",
 				"          Id,",
 				"          Budget,",
 				"          Revenue,",
@@ -154,9 +164,16 @@
 				"     asc(Language, true),",
 				"     Id = rank()) ~> createKey",
 				"createKey aggregate(groupBy(Id),",
-				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRow",
-				"DistinctRows sink(allowSchemaDrift: true,",
+				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRowLanguage",
+				"DistinctRowMovie derive(status = \"loaded\") ~> litStatusLoaded",
+				"split@silverMovieClean aggregate(groupBy(Id),",
+				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRowMovie",
+				"DistinctRowGenres sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> saveSilverGenres",
 				"excludeValue sink(allowSchemaDrift: true,",
@@ -167,7 +184,7 @@
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> saveSilverMovie",
-				"DistinctRow sink(allowSchemaDrift: true,",
+				"DistinctRowLanguage sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     format: 'parquet',",
 				"     umask: 0022,",

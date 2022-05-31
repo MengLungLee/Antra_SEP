@@ -1,5 +1,5 @@
 {
-	"name": "Mov",
+	"name": "Movie_silver",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureDataLakeStorage1",
