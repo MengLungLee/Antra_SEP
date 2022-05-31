@@ -1,0 +1,19 @@
+{
+	"name": "SalesOrders",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SQLEmpToBlobEmp_Activity",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "WWI"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "Sales",
+			"table": "Orders"
+		}
+	}
+}
