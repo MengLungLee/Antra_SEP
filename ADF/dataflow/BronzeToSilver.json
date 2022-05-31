@@ -12,17 +12,32 @@
 					"name": "IngestBronze"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"name": "saveSilverGenres"
+				},
+				{
+					"dataset": {
+						"referenceName": "Mov",
+						"type": "DatasetReference"
+					},
+					"name": "saveSilverMovie"
+				},
+				{
+					"dataset": {
+						"referenceName": "Language_silver",
+						"type": "DatasetReference"
+					},
+					"name": "saveSilverLanguage"
+				}
+			],
 			"transformations": [
 				{
 					"name": "bronzeDF",
 					"description": "SelectValueColumn"
 				},
 				{
-					"name": "silverMovie"
-				},
-				{
-					"name": "derivedGenres"
+					"name": "bronzeAgumentedDFMovie"
 				},
 				{
 					"name": "flatten"
@@ -32,6 +47,24 @@
 				},
 				{
 					"name": "filterNew"
+				},
+				{
+					"name": "split"
+				},
+				{
+					"name": "excludeValue"
+				},
+				{
+					"name": "selectLanguage"
+				},
+				{
+					"name": "selectGenres"
+				},
+				{
+					"name": "createKey"
+				},
+				{
+					"name": "DistinctRow"
 				}
 			],
 			"scriptLines": [
@@ -72,17 +105,76 @@
 				"          UpdatedBy = value.UpdatedBy,",
 				"          CreatedBy = value.CreatedBy,",
 				"          Genres = value.genres.id,",
-				"          Language_Id = 1) ~> silverMovie",
-				"bronzeDF derive(genres = value.genres) ~> derivedGenres",
-				"derivedGenres select(mapColumn(",
+				"          Language_Id = 1) ~> bronzeAgumentedDFMovie",
+				"selectGenres select(mapColumn(",
 				"          id = genres[1].id,",
 				"          name = genres[1].name",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> flatten",
 				"flatten aggregate(groupBy(id),",
-				"     each(match(name != \"id\"), $$ = first($$))) ~> DistinctRows",
-				"IngestBronze filter(status == \"new\") ~> filterNew"
+				"     each(match(name!=\"id\"), $$ = first($$))) ~> DistinctRows",
+				"IngestBronze filter(status == \"new\") ~> filterNew",
+				"bronzeAgumentedDFMovie split(RunTime >= 0,",
+				"     disjoint: false) ~> split@(silverMovieClean, silverMovieQuarantined)",
+				"split@silverMovieClean select(mapColumn(",
+				"          Id,",
+				"          Budget,",
+				"          Revenue,",
+				"          RunTime,",
+				"          Price,",
+				"          Title,",
+				"          Overview,",
+				"          Tagline,",
+				"          Imdburl,",
+				"          TmdbUrl,",
+				"          PosterUrl,",
+				"          BackdropUrl,",
+				"          ReleaseDate,",
+				"          p_CreatedDate,",
+				"          UpdatedDate,",
+				"          UpdatedBy,",
+				"          CreatedBy,",
+				"          Genres,",
+				"          Language_Id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> excludeValue",
+				"bronzeDF select(mapColumn(",
+				"          Language = value.OriginalLanguage",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectLanguage",
+				"bronzeDF select(mapColumn(",
+				"          genres = value.genres",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectGenres",
+				"selectLanguage window(over(Language),",
+				"     asc(Language, true),",
+				"     Id = rank()) ~> createKey",
+				"createKey aggregate(groupBy(Id),",
+				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRow",
+				"DistinctRows sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveSilverGenres",
+				"excludeValue sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveSilverMovie",
+				"DistinctRow sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveSilverLanguage"
 			]
 		}
 	}
