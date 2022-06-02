@@ -3,11 +3,35 @@
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
-			"sources": [],
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "Movie_bronze",
+						"type": "DatasetReference"
+					},
+					"name": "IngestBronzeMovie"
+				}
+			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "filterQuarantined"
+				}
+			],
 			"scriptLines": [
-				""
+				"source(output(",
+				"          value as (BackdropUrl as string, Budget as double, CreatedBy as string, CreatedDate as string, Id as short, ImdbUrl as string, OriginalLanguage as string, Overview as string, PosterUrl as string, Price as double, ReleaseDate as string, Revenue as double, RunTime as short, Tagline as string, Title as string, TmdbUrl as string, UpdatedBy as string, UpdatedDate as string, genres as (id as short, name as string)[]),",
+				"          datasource as string,",
+				"          ingesttime as timestamp,",
+				"          status as string,",
+				"          ingestdate as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: true,",
+				"     inferDriftedColumnTypes: true,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> IngestBronzeMovie",
+				"IngestBronzeMovie filter(status == \"quarantined\") ~> filterQuarantined"
 			]
 		}
 	}

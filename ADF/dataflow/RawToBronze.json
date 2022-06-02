@@ -57,7 +57,8 @@
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> saveToParquet"
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('roundRobin', 5)) ~> saveToParquet"
 			]
 		}
 	}
