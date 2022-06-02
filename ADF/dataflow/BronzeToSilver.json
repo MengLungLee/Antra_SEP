@@ -33,6 +33,14 @@
 						"type": "DatasetReference"
 					},
 					"name": "saveSilverLanguage"
+				},
+				{
+					"dataset": {
+						"referenceName": "Movie_bronze",
+						"type": "DatasetReference"
+					},
+					"name": "saveBronzeMoive",
+					"description": "save Bronze table for clean movie dataset (loaded)"
 				}
 			],
 			"transformations": [
@@ -75,6 +83,12 @@
 				},
 				{
 					"name": "DistinctRowMovie"
+				},
+				{
+					"name": "litStatusQuarantined"
+				},
+				{
+					"name": "UnionCleanQuarantined"
 				}
 			],
 			"scriptLines": [
@@ -168,6 +182,8 @@
 				"DistinctRowMovie derive(status = \"loaded\") ~> litStatusLoaded",
 				"split@silverMovieClean aggregate(groupBy(Id),",
 				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRowMovie",
+				"split@silverMovieQuarantined derive(status = \"quarantined\") ~> litStatusQuarantined",
+				"litStatusLoaded, litStatusQuarantined union(byName: true)~> UnionCleanQuarantined",
 				"DistinctRowGenres sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     format: 'parquet',",
@@ -191,7 +207,15 @@
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> saveSilverLanguage"
+				"     skipDuplicateMapOutputs: true) ~> saveSilverLanguage",
+				"UnionCleanQuarantined sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveBronzeMoive"
 			]
 		}
 	}
