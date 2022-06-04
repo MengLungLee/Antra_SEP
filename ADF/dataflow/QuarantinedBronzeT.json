@@ -12,10 +12,49 @@
 					"name": "IngestBronzeMovie"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "Movie_silver",
+						"type": "DatasetReference"
+					},
+					"name": "saveSilverMovie"
+				},
+				{
+					"dataset": {
+						"referenceName": "Movie_bronze",
+						"type": "DatasetReference"
+					},
+					"name": "saveBronzeMovie"
+				}
+			],
 			"transformations": [
 				{
 					"name": "filterQuarantined"
+				},
+				{
+					"name": "selectValue"
+				},
+				{
+					"name": "absRunTime"
+				},
+				{
+					"name": "excludeValue"
+				},
+				{
+					"name": "DistinctRows"
+				},
+				{
+					"name": "litStatusLoaded"
+				},
+				{
+					"name": "selectValueStatus"
+				},
+				{
+					"name": "join1"
+				},
+				{
+					"name": "selectBronzeColumn"
 				}
 			],
 			"scriptLines": [
@@ -31,7 +70,93 @@
 				"     inferDriftedColumnTypes: true,",
 				"     ignoreNoFilesFound: false,",
 				"     format: 'parquet') ~> IngestBronzeMovie",
-				"IngestBronzeMovie filter(status == \"quarantined\") ~> filterQuarantined"
+				"IngestBronzeMovie filter(status == \"quarantined\") ~> filterQuarantined",
+				"filterQuarantined select(mapColumn(",
+				"          value,",
+				"          Id = value.Id,",
+				"          Budget = value.Budget,",
+				"          Revenue = value.Revenue,",
+				"          RunTime = value.RunTime,",
+				"          Price = value.Price,",
+				"          Title = value.Title,",
+				"          Overview = value.Overview,",
+				"          Tagline = value.Tagline,",
+				"          ImdbUrl = value.ImdbUrl,",
+				"          TmdbUrl = value.TmdbUrl,",
+				"          PosterUrl = value.PosterUrl,",
+				"          BackdropUrl = value.BackdropUrl,",
+				"          ReleaseDate = value.ReleaseDate,",
+				"          CreatedDate = value.CreatedDate,",
+				"          UpdatedDate = value.UpdatedDate,",
+				"          UpdatedBy = value.UpdatedBy,",
+				"          CreatedBy = value.CreatedBy,",
+				"          genres = value.genres,",
+				"          OriginalLanguage = value.OriginalLanguage",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectValue",
+				"selectValue derive(RunTime = abs(RunTime)) ~> absRunTime",
+				"DistinctRows select(mapColumn(",
+				"          Id,",
+				"          Budget,",
+				"          Revenue,",
+				"          RunTime,",
+				"          Price,",
+				"          Title,",
+				"          Overview,",
+				"          Tagline,",
+				"          ImdbUrl,",
+				"          TmdbUrl,",
+				"          PosterUrl,",
+				"          BackdropUrl,",
+				"          ReleaseDate,",
+				"          CreatedDate,",
+				"          UpdatedDate,",
+				"          UpdatedBy,",
+				"          CreatedBy,",
+				"          genres,",
+				"          OriginalLanguage",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> excludeValue",
+				"absRunTime aggregate(groupBy(Id),",
+				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRows",
+				"DistinctRows derive(status = \"loaded\") ~> litStatusLoaded",
+				"litStatusLoaded select(mapColumn(",
+				"          value,",
+				"          status",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectValueStatus",
+				"selectValueStatus, IngestBronzeMovie join(selectValueStatus@value.Id == IngestBronzeMovie@value.Id,",
+				"     joinType:'inner',",
+				"     broadcast: 'auto')~> join1",
+				"join1 select(mapColumn(",
+				"          value = selectValueStatus@value,",
+				"          datasource,",
+				"          ingesttime,",
+				"          ingestdate,",
+				"          status = selectValueStatus@status",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectBronzeColumn",
+				"excludeValue sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('roundRobin', 5)) ~> saveSilverMovie",
+				"selectBronzeColumn sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> saveBronzeMovie"
 			]
 		}
 	}

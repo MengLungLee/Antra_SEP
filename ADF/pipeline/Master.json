@@ -1,0 +1,41 @@
+{
+	"name": "Master",
+	"properties": {
+		"activities": [
+			{
+				"name": "RawToBronzeToSilver",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "RawToBronzeToSilver",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "QuarantinedBronzeToSilver",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "RawToBronzeToSilver",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "QuarantinedBronzeToSilver",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			}
+		],
+		"annotations": []
+	}
+}
