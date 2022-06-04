@@ -18,14 +18,7 @@
 			{
 				"name": "QuarantinedBronzeToSilver",
 				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "RawToBronzeToSilver",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
