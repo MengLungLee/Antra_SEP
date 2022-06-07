@@ -54,11 +54,11 @@
 				"     validateSchema: true,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
-				"     preCommands: ['rm -r /result/bronze'],",
+				"     preCommands: ['rm /result/bronze/*'],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     partitionBy('roundRobin', 5)) ~> saveToBronze"
+				"     partitionBy('hash', 1)) ~> saveToBronze"
 			]
 		}
 	}

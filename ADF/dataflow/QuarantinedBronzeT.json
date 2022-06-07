@@ -55,6 +55,9 @@
 				},
 				{
 					"name": "selectBronzeColumn"
+				},
+				{
+					"name": "ChangeValueToString"
 				}
 			],
 			"scriptLines": [
@@ -120,7 +123,7 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> excludeValue",
 				"absRunTime aggregate(groupBy(Id),",
-				"     each(match(name != \"Id\"), $$ = first($$))) ~> DistinctRows",
+				"     each(match(name!=\"Id\"), $$ = first($$))) ~> DistinctRows",
 				"DistinctRows derive(status = \"loaded\") ~> litStatusLoaded",
 				"litStatusLoaded select(mapColumn(",
 				"          value,",
@@ -140,6 +143,7 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> selectBronzeColumn",
+				"selectBronzeColumn derive(value = toString(value)) ~> ChangeValueToString",
 				"excludeValue sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     format: 'parquet',",
@@ -148,15 +152,18 @@
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     partitionBy('roundRobin', 5)) ~> saveSilverMovie",
-				"selectBronzeColumn sink(allowSchemaDrift: true,",
+				"     saveOrder: 2,",
+				"     partitionBy('hash', 1)) ~> saveSilverMovie",
+				"ChangeValueToString sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
-				"     preCommands: [],",
+				"     preCommands: ['rm -r /result/bronze'],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> saveBronzeMovie"
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     partitionBy('hash', 1)) ~> saveBronzeMovie"
 			]
 		}
 	}
