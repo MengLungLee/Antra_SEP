@@ -54,7 +54,7 @@
 				"     validateSchema: true,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
-				"     preCommands: ['rm /result/bronze/*'],",
+				"     preCommands: ['rm -f /result/bronze/*'],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
