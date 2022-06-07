@@ -18,7 +18,7 @@
 						"referenceName": "Movie_bronze",
 						"type": "DatasetReference"
 					},
-					"name": "saveToParquet",
+					"name": "saveToBronze",
 					"description": "Export data to Parquet1 from raw to bronze"
 				}
 			],
@@ -54,11 +54,11 @@
 				"     validateSchema: true,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
-				"     preCommands: [],",
+				"     preCommands: ['rm -r /result/bronze'],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     partitionBy('roundRobin', 5)) ~> saveToParquet"
+				"     partitionBy('roundRobin', 5)) ~> saveToBronze"
 			]
 		}
 	}
