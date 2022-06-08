@@ -158,7 +158,7 @@
 				"     validateSchema: false,",
 				"     format: 'parquet',",
 				"     umask: 0022,",
-				"     preCommands: ['rm -f /result/bronze/*'],",
+				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
