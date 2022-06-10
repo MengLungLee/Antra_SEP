@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Set Extract TableName",
+				"name": "Set TableName",
 				"type": "SetVariable",
 				"dependsOn": [],
 				"userProperties": [],
@@ -42,7 +42,7 @@
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "Set Extract TableName",
+						"activity": "Set TableName",
 						"dependencyConditions": [
 							"Succeeded"
 						]
