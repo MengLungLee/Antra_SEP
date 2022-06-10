@@ -1,5 +1,5 @@
 {
-	"name": "Customers",
+	"name": "OLTP_Customers",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureSqlDatabase",

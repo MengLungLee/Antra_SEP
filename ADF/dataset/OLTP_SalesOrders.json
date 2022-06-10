@@ -1,5 +1,5 @@
 {
-	"name": "SalesOrders",
+	"name": "OLTP_SalesOrders",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureSqlDatabase",

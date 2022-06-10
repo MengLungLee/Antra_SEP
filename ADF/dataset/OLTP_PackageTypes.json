@@ -1,5 +1,5 @@
 {
-	"name": "PackageTypes",
+	"name": "OLTP_PackageTypes",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureSqlDatabase",

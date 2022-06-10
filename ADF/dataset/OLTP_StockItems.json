@@ -1,5 +1,5 @@
 {
-	"name": "StockItems",
+	"name": "OLTP_StockItems",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureSqlDatabase",
