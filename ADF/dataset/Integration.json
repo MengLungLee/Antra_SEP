@@ -1,0 +1,24 @@
+{
+	"name": "Integration",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Integration",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"TableName": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Integration"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "Integration",
+			"table": "@dataset().TableName"
+		}
+	}
+}
