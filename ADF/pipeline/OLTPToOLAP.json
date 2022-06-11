@@ -97,7 +97,7 @@
 					"isSequential": true,
 					"activities": [
 						{
-							"name": "Truncate TABLE_Staging",
+							"name": "Truncate Table_Staging",
 							"type": "Script",
 							"dependsOn": [
 								{
@@ -158,7 +158,7 @@
 										"TableName": {
 											"type": "String",
 											"value": {
-												"value": "@{item().Name}",
+												"value": "@{item().Col}",
 												"type": "Expression"
 											}
 										}
@@ -177,7 +177,7 @@
 							"type": "Lookup",
 							"dependsOn": [
 								{
-									"activity": "Truncate TABLE_Staging",
+									"activity": "Truncate Table_Staging",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -199,7 +199,7 @@
 										"TableName": {
 											"type": "String",
 											"value": {
-												"value": "@{item().Name}",
+												"value": "@{item().Col}",
 												"type": "Expression"
 											}
 										}
