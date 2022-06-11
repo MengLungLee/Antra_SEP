@@ -1,0 +1,12 @@
+{
+	"name": "DWforSPs",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "DWSP",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": []
+	}
+}

@@ -99,7 +99,14 @@
 						{
 							"name": "Truncate TABLE_Staging",
 							"type": "Script",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "LookupLineageKey",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "7.00:00:00",
 								"retry": 0,
@@ -125,11 +132,11 @@
 							}
 						},
 						{
-							"name": "Extract_Updated_Table_DataToIntegration",
-							"type": "ExecuteDataFlow",
+							"name": "LookupLineageKey",
+							"type": "Lookup",
 							"dependsOn": [],
 							"policy": {
-								"timeout": "1.00:00:00",
+								"timeout": "7.00:00:00",
 								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
@@ -137,29 +144,191 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"dataflow": {
-									"referenceName": "Extract_Updated_Table_DataToIntegration",
-									"type": "DataFlowReference",
-									"parameters": {
-										"LastCutoffFTime": {
-											"value": "@activity('Exec LastTableETLCutoffTime').output.CutoffTime",
-											"type": "Expression"
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderStoredProcedureName": "[Integration].[GetLineageKey]",
+									"storedProcedureParameters": {
+										"NewCutoffTime": {
+											"type": "DateTime",
+											"value": {
+												"value": "@variables('TargetETLCutoffTime')",
+												"type": "Expression"
+											}
 										},
-										"TargetCutoffTime": {
-											"value": "@variables('TargetETLCutoffTime')",
-											"type": "Expression"
-										},
-										"tableName": {
-											"value": "'@{item().Name}'",
-											"type": "Expression"
+										"TableName": {
+											"type": "String",
+											"value": {
+												"value": "@{item().Name}",
+												"type": "Expression"
+											}
 										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "DWforSPs",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "LookupETLCutoffTime",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Truncate TABLE_Staging",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderStoredProcedureName": "[Integration].[GetLastETLCutoffTime]",
+									"storedProcedureParameters": {
+										"TableName": {
+											"type": "String",
+											"value": {
+												"value": "@{item().Name}",
+												"type": "Expression"
+											}
+										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "DWforSPs",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Set LastCutoffTime",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "LookupETLCutoffTime",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "LastETLCutoffTime",
+								"value": "@{activity('LookupETLCutoffTime').output.firstRow.CutoffTime}"
+							}
+						},
+						{
+							"name": "ExtractUpdatedDataToIntegration",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Set LastCutoffTime",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderStoredProcedureName": "[Integration].[Get@{item().Name}Updates]",
+									"storedProcedureParameters": {
+										"LastCutoff": {
+											"type": "DateTime",
+											"value": {
+												"value": "@variables('LastETLCutoffTime')",
+												"type": "Expression"
+											}
+										},
+										"NewCutoff": {
+											"type": "DateTime",
+											"value": {
+												"value": "@variables('TargetETLCutoffTime')",
+												"type": "Expression"
+											}
+										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
 									}
-								},
-								"compute": {
-									"coreCount": 8,
-									"computeType": "General"
-								},
-								"traceLevel": "Fine"
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "OLTPforSPs",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "OLAP",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "Integration",
+										"TableName": "@{item().Name}_Staging"
+									}
+								}
+							]
+						},
+						{
+							"name": "MigrateStagedTableData",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "ExtractUpdatedDataToIntegration",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[Integration].[MigrateStaged@{item().Name}Data]"
+							},
+							"linkedServiceName": {
+								"referenceName": "DWSP",
+								"type": "LinkedServiceReference"
 							}
 						}
 					]
