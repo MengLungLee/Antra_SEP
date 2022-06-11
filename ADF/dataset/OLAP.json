@@ -1,0 +1,24 @@
+{
+	"name": "OLAP",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "DWSP",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"SchemaName": {
+				"type": "string"
+			},
+			"TableName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "@dataset().SchemaName",
+			"table": "@dataset().Tablename"
+		}
+	}
+}
