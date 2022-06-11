@@ -97,52 +97,9 @@
 					"isSequential": true,
 					"activities": [
 						{
-							"name": "Get Lineage Key",
-							"type": "SqlServerStoredProcedure",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "7.00:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"storedProcedureName": "[Integration].[GetLineageKey]",
-								"storedProcedureParameters": {
-									"NewCutoffTime": {
-										"value": {
-											"value": "@variables('TargetETLCutoffTime')",
-											"type": "Expression"
-										},
-										"type": "DateTime"
-									},
-									"TableName": {
-										"value": {
-											"value": "@{item().Name}",
-											"type": "Expression"
-										},
-										"type": "String"
-									}
-								}
-							},
-							"linkedServiceName": {
-								"referenceName": "DWSP",
-								"type": "LinkedServiceReference"
-							}
-						},
-						{
 							"name": "Truncate TABLE_Staging",
 							"type": "Script",
-							"dependsOn": [
-								{
-									"activity": "Get Lineage Key",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
+							"dependsOn": [],
 							"policy": {
 								"timeout": "7.00:00:00",
 								"retry": 0,
@@ -168,18 +125,11 @@
 							}
 						},
 						{
-							"name": "Exec LastTableETLCutoffTime",
-							"type": "SqlServerStoredProcedure",
-							"dependsOn": [
-								{
-									"activity": "Truncate TABLE_Staging",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
+							"name": "Extract_Updated_Table_DataToIntegration",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [],
 							"policy": {
-								"timeout": "7.00:00:00",
+								"timeout": "1.00:00:00",
 								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
@@ -187,20 +137,29 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[Integration].[GetLastETLCutoffTime]",
-								"storedProcedureParameters": {
-									"TableName": {
-										"value": {
-											"value": "@{item().Name}",
+								"dataflow": {
+									"referenceName": "Extract_Updated_Table_DataToIntegration",
+									"type": "DataFlowReference",
+									"parameters": {
+										"LastCutoffFTime": {
+											"value": "@activity('Exec LastTableETLCutoffTime').output.CutoffTime",
 											"type": "Expression"
 										},
-										"type": "String"
+										"TargetCutoffTime": {
+											"value": "@variables('TargetETLCutoffTime')",
+											"type": "Expression"
+										},
+										"tableName": {
+											"value": "'@{item().Name}'",
+											"type": "Expression"
+										}
 									}
-								}
-							},
-							"linkedServiceName": {
-								"referenceName": "DWSP",
-								"type": "LinkedServiceReference"
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								},
+								"traceLevel": "Fine"
 							}
 						}
 					]

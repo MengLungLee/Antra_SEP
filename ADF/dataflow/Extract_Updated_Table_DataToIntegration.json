@@ -1,0 +1,57 @@
+{
+	"name": "Extract_Updated_Table_DataToIntegration",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "OLTP",
+						"type": "LinkedServiceReference"
+					},
+					"name": "GETTableUpdates"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "DWSP",
+						"type": "LinkedServiceReference"
+					},
+					"name": "IntegrationTableStaging"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"parameters{",
+				"     LastCutoffFTime as date,",
+				"     TargetCutoffTime as date,",
+				"     tableName as string",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'procedure',",
+				"     store: 'sqlserver',",
+				"     procedureName: ('Get'+toString($tableName)+'Updates'),",
+				"     schemaName: 'Integration',",
+				"     resultSet: true,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     inputs:['@LastCutoff' -> ($LastCutoffFTime),'@NewCutoff' -> ($TargetCutoffTime)]) ~> GETTableUpdates",
+				"GETTableUpdates sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'Integration',",
+				"     tableName: 'toString($tableName)+\\'_Staging\\'',",
+				"     insertable: true,",
+				"     updateable: false,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> IntegrationTableStaging"
+			]
+		}
+	}
+}
